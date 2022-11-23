@@ -302,15 +302,14 @@ public class COSWriter implements ICOSVisitor, Closeable
                 long highestNumber = doc.getDocument().getHighestXRefObjectNumber();
                 for ( COSObjectKey cosObjectKey : keySet )
                 {
-                    COSBase object = cosDoc.getObjectFromPool(cosObjectKey).getObject();
-                    if (object != null && cosObjectKey!= null && !(object instanceof COSNumber))
-                    {
-                        objectKeys.put(object, cosObjectKey);
-                        keyObject.put(cosObjectKey,object);
-                    }
-
                     if (cosObjectKey != null)
                     {
+                        COSBase object = cosDoc.getObjectFromPool(cosObjectKey).getObject();
+                        if (object != null && !(object instanceof COSNumber))
+                        {
+                            objectKeys.put(object, cosObjectKey);
+                            keyObject.put(cosObjectKey, object);
+                        }
                         long num = cosObjectKey.getNumber();
                         if (num > highestNumber)
                         {
@@ -504,31 +503,30 @@ public class COSWriter implements ICOSVisitor, Closeable
             actual = ((COSObject)actual).getObject();
         }
 
-        if( !writtenObjects.contains( object ) &&
-            !objectsToWriteSet.contains( object ) &&
-            !actualsAdded.contains( actual ) )
+        if (writtenObjects.contains(object) || objectsToWriteSet.contains(object)
+            || actualsAdded.contains(actual))
         {
-            COSBase cosBase=null;
-            COSObjectKey cosObjectKey = null;
-            if(actual != null)
-            {
-                cosObjectKey= objectKeys.get(actual);
-            }
-            if(cosObjectKey!=null)
+            return;
+        }
+        COSBase cosBase = null;
+        COSObjectKey cosObjectKey = null;
+        if (actual != null)
+        {
+            cosObjectKey = objectKeys.get(actual);
+            if (cosObjectKey != null)
             {
                 cosBase = keyObject.get(cosObjectKey);
+                if (!isNeedToBeUpdated(object) && !isNeedToBeUpdated(cosBase))
+                {
+                    return;
+                }
             }
-            if (actual != null && objectKeys.containsKey(actual)
-                && !isNeedToBeUpdated(object) && !isNeedToBeUpdated(cosBase))
-            {
-                return;
-            }
-            objectsToWrite.add( object );
-            objectsToWriteSet.add( object );
-            if( actual != null )
-            {
-                actualsAdded.add( actual );
-            }
+        }
+        objectsToWrite.add(object);
+        objectsToWriteSet.add(object);
+        if (actual != null)
+        {
+            actualsAdded.add(actual);
         }
     }
 
@@ -585,11 +583,11 @@ public class COSWriter implements ICOSVisitor, Closeable
         String headerString;
         if (fdfDocument != null)
         {
-            headerString = "%FDF-"+ Float.toString(doc.getVersion());
+            headerString = "%FDF-"+ doc.getVersion();
         }
         else
         {
-            headerString = "%PDF-"+ Float.toString(doc.getVersion());
+            headerString = "%PDF-"+ doc.getVersion();
         }
         getStandardOutput().write( headerString.getBytes(Charsets.ISO_8859_1) );
 
@@ -646,7 +644,7 @@ public class COSWriter implements ICOSVisitor, Closeable
             // it with an xref stream. We create a new one and fill it
             // with data available here
 
-            // create a new XRefStrema object
+            // create a new XRefStream object
             PDFXRefStream pdfxRefStream = new PDFXRefStream(doc);
 
             // add all entries from the incremental update.
@@ -711,15 +709,19 @@ public class COSWriter implements ICOSVisitor, Closeable
         int xRefLength = xRefRanges.length;
         int x = 0;
         int j = 0;
-        while (x < xRefLength && (xRefLength % 2) == 0)
+        if ((xRefLength % 2) == 0)
         {
-            writeXrefRange(xRefRanges[x], xRefRanges[x + 1]);
-
-            for (int i = 0; i < xRefRanges[x + 1]; ++i)
+            while (x < xRefLength)
             {
-                writeXrefEntry(xRefEntries.get(j++));
+                long xRefRangeX1 = xRefRanges[x + 1];
+                writeXrefRange(xRefRanges[x], xRefRangeX1);
+
+                for (int i = 0; i < xRefRangeX1; ++i)
+                {
+                    writeXrefEntry(xRefEntries.get(j++));
+                }
+                x += 2;
             }
-            x += 2;
         }
     }
 
@@ -838,7 +840,8 @@ public class COSWriter implements ICOSVisitor, Closeable
         // subtract 2 bytes because of the enclosing "<>"
         if (signatureBytes.length > signatureLength - 2)
         {
-            throw new IOException("Can't write signature, not enough space");
+            throw new IOException("Can't write signature, not enough space; "
+                + "adjust it with SignatureOptions.setPreferredSignatureSize");
         }
 
         // overwrite the signature Contents in the buffer

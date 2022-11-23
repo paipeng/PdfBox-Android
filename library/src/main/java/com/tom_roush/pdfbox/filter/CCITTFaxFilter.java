@@ -16,7 +16,6 @@
  */
 package com.tom_roush.pdfbox.filter;
 
-import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -72,19 +71,16 @@ final class CCITTFaxFilter extends Filter
             type = TIFFExtension.COMPRESSION_CCITT_T4; // Group 3 1D
             byte[] streamData = new byte[20];
             int bytesRead = encoded.read(streamData);
-            if (bytesRead != streamData.length)
-            {
-                throw new EOFException("Can't read " + streamData.length + " bytes");
-            }
-            encoded = new PushbackInputStream(encoded, streamData.length);
-            ((PushbackInputStream) encoded).unread(streamData);
+            PushbackInputStream pushbackInputStream = new PushbackInputStream(encoded, streamData.length);
+            pushbackInputStream.unread(streamData, 0, bytesRead);
+            encoded = pushbackInputStream;
             if (streamData[0] != 0 || (streamData[1] >> 4 != 1 && streamData[1] != 1))
             {
                 // leading EOL (0b000000000001) not found, search further and try RLE if not
                 // found
                 type = TIFFExtension.COMPRESSION_CCITT_MODIFIED_HUFFMAN_RLE;
                 short b = (short) (((streamData[0] << 8) + (streamData[1] & 0xff)) >> 4);
-                for (int i = 12; i < 160; i++)
+                for (int i = 12; i < bytesRead * 8; i++)
                 {
                     b = (short) ((b << 1) + ((streamData[(i / 8)] >> (7 - (i % 8))) & 0x01));
                     if ((b & 0xFFF) == 1)
@@ -106,7 +102,7 @@ final class CCITTFaxFilter extends Filter
             // Group 4
             type = TIFFExtension.COMPRESSION_CCITT_T6;
         }
-        s = new CCITTFaxDecoderStream(encoded, cols, type, TIFFExtension.FILL_LEFT_TO_RIGHT, tiffOptions, encodedByteAlign);
+        s = new CCITTFaxDecoderStream(encoded, cols, type, tiffOptions, encodedByteAlign);
         readFromDecoderStream(s, decompressed);
 
         // invert bitmap
@@ -137,7 +133,6 @@ final class CCITTFaxFilter extends Filter
                 break;
             }
         }
-        decoderStream.close();
     }
 
     private void invertBitmap(byte[] bufferData)
@@ -157,6 +152,5 @@ final class CCITTFaxFilter extends Filter
         CCITTFaxEncoderStream ccittFaxEncoderStream =
             new CCITTFaxEncoderStream(encoded, cols, rows, TIFFExtension.FILL_LEFT_TO_RIGHT);
         IOUtils.copy(input, ccittFaxEncoderStream);
-        input.close();
     }
 }

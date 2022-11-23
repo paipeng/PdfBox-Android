@@ -103,7 +103,9 @@ public class PDNumberTreeNode implements COSObjectable
     /**
      * Set the children of this number tree.
      *
-     * @param kids The children of this number tree.
+     * @param kids The children of this number tree. These have to be in sorted order. Because of
+     * that, it is usually easier to call {@link #setNumbers(Map)} with a map and pass a single
+     * element list here.
      */
     public void setKids( List<? extends PDNumberTreeNode> kids )
     {
@@ -233,7 +235,7 @@ public class PDNumberTreeNode implements COSObjectable
 
     /**
      * Set the numbers for this node. This method will set the appropriate upper and lower limits
-     * based on the keys in the map.
+     * based on the keys in the map and take care of the ordering.
      *
      * @param numbers The map of numbers to objects, or <code>null</code> for nothing.
      */
@@ -277,7 +279,7 @@ public class PDNumberTreeNode implements COSObjectable
     {
         Integer retval = null;
         COSArray arr = (COSArray)node.getDictionaryObject( COSName.LIMITS );
-        if( arr != null && arr.get(0) != null )
+        if( arr != null && arr.get(1) != null )
         {
             retval = arr.getInt( 1 );
         }

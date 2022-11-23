@@ -158,6 +158,7 @@ public abstract class PDFont implements COSObjectable, PDFontLike
                 {
                     // assume that if encoding is identity, then the reverse is also true
                     cmap = CMapManager.getPredefinedCMap(COSName.IDENTITY_H.getName());
+                    Log.w("PdfBox-Android", "Using predefined identity CMap instead");
                 }
             }
         }
@@ -396,11 +397,16 @@ public abstract class PDFont implements COSObjectable, PDFontLike
             {
                 for (int i = 0; i < widths.size(); i++)
                 {
-                    COSNumber fontWidth = (COSNumber) widths.getObject(i);
-                    if (fontWidth.floatValue() > 0)
+                    COSBase base = widths.getObject(i);
+                    if (base instanceof COSNumber)
                     {
-                        totalWidth += fontWidth.floatValue();
-                        characterCount += 1;
+                        COSNumber fontWidth = (COSNumber) base;
+                        float floatValue = fontWidth.floatValue();
+                        if (floatValue > 0)
+                        {
+                            totalWidth += floatValue;
+                            characterCount += 1;
+                        }
                     }
                 }
             }

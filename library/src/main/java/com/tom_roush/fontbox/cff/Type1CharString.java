@@ -233,7 +233,7 @@ public class Type1CharString
         }
         else if ("closepath".equals(name))
         {
-            closepath();
+            closeCharString1Path();
         }
         else if ("sbw".equals(name))
         {
@@ -292,16 +292,19 @@ public class Type1CharString
         }
         else if ("div".equals(name))
         {
-            float b = numbers.get(numbers.size() -1).floatValue();
-            float a = numbers.get(numbers.size() -2).floatValue();
+            if (numbers.size() >= 2)
+            {
+                float b = numbers.get(numbers.size() - 1).floatValue();
+                float a = numbers.get(numbers.size() - 2).floatValue();
 
-            float result = a / b;
+                float result = a / b;
 
-            List<Number> list = new ArrayList<Number>(numbers);
-            list.remove(list.size() - 1);
-            list.remove(list.size() - 1);
-            list.add(result);
-            return list;
+                List<Number> list = new ArrayList<Number>(numbers);
+                list.remove(list.size() - 1);
+                list.remove(list.size() - 1);
+                list.add(result);
+                return list;
+            }
         }
         else if ("hstem".equals(name) || "vstem".equals(name) ||
             "hstem3".equals(name) || "vstem3".equals(name) || "dotsection".equals(name))
@@ -312,10 +315,10 @@ public class Type1CharString
         {
             // end
         }
-        else if ("return".equals(name))
+        else if ("return".equals(name) || "callsubr".equals(name))
         {
             // indicates an invalid charstring
-            Log.w("PdfBox-Android", "Unexpected charstring command: " + command.getKey() + " in glyph " +
+            Log.w("PdfBox-Android", "Unexpected charstring command: " + name + " in glyph " +
                 glyphName + " of font " + fontName);
         }
         else if (name != null)
@@ -371,13 +374,15 @@ public class Type1CharString
             // make the first point relative to the start point
             first.set(first.x - current.x, first.y - current.y);
 
-            rrcurveTo(flexPoints.get(1).x, flexPoints.get(1).y,
-                flexPoints.get(2).x, flexPoints.get(2).y,
-                flexPoints.get(3).x, flexPoints.get(3).y);
+            PointF p1 = flexPoints.get(1);
+            PointF p2 = flexPoints.get(2);
+            PointF p3 = flexPoints.get(3);
+            rrcurveTo(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
 
-            rrcurveTo(flexPoints.get(4).x, flexPoints.get(4).y,
-                flexPoints.get(5).x, flexPoints.get(5).y,
-                flexPoints.get(6).x, flexPoints.get(6).y);
+            PointF p4 = flexPoints.get(4);
+            PointF p5 = flexPoints.get(5);
+            PointF p6 = flexPoints.get(6);
+            rrcurveTo(p4.x, p4.y, p5.x, p5.y, p6.x, p6.y);
 
             flexPoints.clear();
         }
@@ -388,8 +393,7 @@ public class Type1CharString
         }
         else
         {
-            // indicates a PDFBox bug
-            throw new IllegalArgumentException("Unexpected other subroutine: " + num);
+            Log.w("PdfBox-Android", "Invalid callothersubr parameter: " + num);
         }
     }
 
@@ -450,7 +454,7 @@ public class Type1CharString
     /**
      * Close path.
      */
-    private void closepath()
+    private void closeCharString1Path()
     {
         if (path.isEmpty())
         {
@@ -487,6 +491,13 @@ public class Type1CharString
         try
         {
             Type1CharString accent = font.getType1CharString(accentName);
+            if (path == accent.getPath())
+            {
+                // PDFBOX-5339: avoid ArrayIndexOutOfBoundsException 
+                // reproducable with poc file crash-4698e0dc7833a3f959d06707e01d03cda52a83f4
+                Log.w("PdfBox-Android", "Path for " + baseName + " and for accent " + accentName + " are same, ignored");
+                return;
+            }
             AffineTransform at = AffineTransform.getTranslateInstance(
                 leftSideBearing.x + adx.floatValue() - asb.floatValue(),
                 leftSideBearing.y + ady.floatValue());

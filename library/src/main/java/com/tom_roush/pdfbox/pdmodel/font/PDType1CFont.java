@@ -28,6 +28,7 @@ import java.util.Map;
 
 import com.tom_roush.fontbox.EncodedFont;
 import com.tom_roush.fontbox.FontBoxFont;
+import com.tom_roush.fontbox.cff.CFFFont;
 import com.tom_roush.fontbox.cff.CFFParser;
 import com.tom_roush.fontbox.cff.CFFType1Font;
 import com.tom_roush.fontbox.util.BoundingBox;
@@ -96,7 +97,16 @@ public class PDType1CFont extends PDSimpleFont
             {
                 // note: this could be an OpenType file, fortunately CFFParser can handle that
                 CFFParser cffParser = new CFFParser();
-                cffEmbedded = (CFFType1Font)cffParser.parse(bytes, new FF3ByteSource()).get(0);
+                CFFFont parsedCffFont = cffParser.parse(bytes, new FF3ByteSource()).get(0);
+                if (parsedCffFont instanceof CFFType1Font)
+                {
+                    cffEmbedded = (CFFType1Font) parsedCffFont;
+                }
+                else
+                {
+                    Log.e("PdfBox-Android", "Expected CFFType1Font, got " + parsedCffFont.getClass().getSimpleName());
+                    fontIsDamaged = true;
+                }
             }
         }
         catch (IOException e)
@@ -166,6 +176,10 @@ public class PDType1CFont extends PDSimpleFont
         }
         if ("nbspace".equals(name))
         {
+            if (!hasGlyph("space"))
+            {
+                return new Path();
+            }
             return genericFont.getPath("space");
         }
         return genericFont.getPath(name);

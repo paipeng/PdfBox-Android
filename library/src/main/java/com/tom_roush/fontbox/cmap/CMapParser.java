@@ -141,25 +141,28 @@ public class CMapParser
                     {
                         parseUsecmap((LiteralName) previousToken, result);
                     }
-                    else if (op.op.equals("begincodespacerange") && previousToken instanceof Number)
+                    else if (previousToken instanceof Number)
                     {
-                        parseBegincodespacerange((Number) previousToken, cmapStream, result);
-                    }
-                    else if (op.op.equals("beginbfchar") && previousToken instanceof Number)
-                    {
-                        parseBeginbfchar((Number) previousToken, cmapStream, result);
-                    }
-                    else if (op.op.equals("beginbfrange") && previousToken instanceof Number)
-                    {
-                        parseBeginbfrange((Number) previousToken, cmapStream, result);
-                    }
-                    else if (op.op.equals("begincidchar") && previousToken instanceof Number)
-                    {
-                        parseBegincidchar((Number) previousToken, cmapStream, result);
-                    }
-                    else if (op.op.equals("begincidrange") && previousToken instanceof Integer)
-                    {
-                        parseBegincidrange((Integer) previousToken, cmapStream, result);
+                        if (op.op.equals("begincodespacerange"))
+                        {
+                            parseBegincodespacerange((Number) previousToken, cmapStream, result);
+                        }
+                        else if (op.op.equals("beginbfchar"))
+                        {
+                            parseBeginbfchar((Number) previousToken, cmapStream, result);
+                        }
+                        else if (op.op.equals("beginbfrange"))
+                        {
+                            parseBeginbfrange((Number) previousToken, cmapStream, result);
+                        }
+                        else if (op.op.equals("begincidchar"))
+                        {
+                            parseBegincidchar((Number) previousToken, cmapStream, result);
+                        }
+                        else if (op.op.equals("begincidrange") && previousToken instanceof Integer)
+                        {
+                            parseBegincidrange((Integer) previousToken, cmapStream, result);
+                        }
                     }
                 }
             }
@@ -243,6 +246,25 @@ public class CMapParser
         }
     }
 
+    /**
+     * Throws an IOException if expectedOperatorName not equals operator.op
+     *
+     * @param operator Instance of operator
+     * @param expectedOperatorName Expected name of operator
+     * @param rangeName The name of the range in which the operator is expected (without a tilde
+     * character), to be used in the exception message.
+     *
+     * @throws IOException if expectedOperatorName not equals operator.op
+     */
+    private void checkExpectedOperator(Operator operator, String expectedOperatorName, String rangeName) throws IOException
+    {
+        if (!operator.op.equals(expectedOperatorName))
+        {
+            throw new IOException("Error : ~" + rangeName + " contains an unexpected operator : "
+                + operator.op);
+        }
+    }
+
     private void parseBegincodespacerange(Number cosCount, PushbackInputStream cmapStream, CMap result) throws IOException
     {
         for (int j = 0; j < cosCount.intValue(); j++)
@@ -250,11 +272,7 @@ public class CMapParser
             Object nextToken = parseNextToken(cmapStream);
             if (nextToken instanceof Operator)
             {
-                if (!((Operator) nextToken).op.equals("endcodespacerange"))
-                {
-                    throw new IOException("Error : ~codespacerange contains an unexpected operator : "
-                        + ((Operator) nextToken).op);
-                }
+                checkExpectedOperator((Operator) nextToken, "endcodespacerange", "codespacerange");
                 break;
             }
             byte[] startRange = (byte[]) nextToken;
@@ -277,11 +295,7 @@ public class CMapParser
             Object nextToken = parseNextToken(cmapStream);
             if (nextToken instanceof Operator)
             {
-                if (!((Operator) nextToken).op.equals("endbfchar"))
-                {
-                    throw new IOException("Error : ~bfchar contains an unexpected operator : "
-                        + ((Operator) nextToken).op);
-                }
+                checkExpectedOperator((Operator) nextToken, "endbfchar", "bfchar");
                 break;
             }
             byte[] inputCode = (byte[]) nextToken;
@@ -311,11 +325,7 @@ public class CMapParser
             Object nextToken = parseNextToken(cmapStream);
             if (nextToken instanceof Operator)
             {
-                if (!((Operator) nextToken).op.equals("endcidrange"))
-                {
-                    throw new IOException("Error : ~cidrange contains an unexpected operator : "
-                        + ((Operator) nextToken).op);
-                }
+                checkExpectedOperator((Operator) nextToken, "endcidrange", "cidrange");
                 break;
             }
             byte[] startCode = (byte[]) nextToken;
@@ -356,11 +366,7 @@ public class CMapParser
             Object nextToken = parseNextToken(cmapStream);
             if (nextToken instanceof Operator)
             {
-                if (!((Operator) nextToken).op.equals("endcidchar"))
-                {
-                    throw new IOException("Error : ~cidchar contains an unexpected operator : "
-                        + ((Operator) nextToken).op);
-                }
+                checkExpectedOperator((Operator) nextToken, "endcidchar", "cidchar");
                 break;
             }
             byte[] inputCode = (byte[]) nextToken;
@@ -375,17 +381,27 @@ public class CMapParser
         for (int j = 0; j < cosCount.intValue(); j++)
         {
             Object nextToken = parseNextToken(cmapStream);
+            if (nextToken == null)
+            {
+                throw new IOException("start code missing");
+            }
             if (nextToken instanceof Operator)
             {
-                if (!((Operator) nextToken).op.equals("endbfrange"))
-                {
-                    throw new IOException("Error : ~bfrange contains an unexpected operator : "
-                        + ((Operator) nextToken).op);
-                }
+                checkExpectedOperator((Operator) nextToken, "endbfrange", "bfrange");
                 break;
             }
             byte[] startCode = (byte[]) nextToken;
-            byte[] endCode = (byte[]) parseNextToken(cmapStream);
+            nextToken = parseNextToken(cmapStream);
+            if (nextToken == null)
+            {
+                throw new IOException("end code missing");
+            }
+            if (nextToken instanceof Operator)
+            {
+                checkExpectedOperator((Operator) nextToken, "endbfrange", "bfrange");
+                break;
+            }
+            byte[] endCode = (byte[]) nextToken;
             int start = CMap.toInt(startCode, startCode.length);
             int end = CMap.toInt(endCode, endCode.length);
             // end has to be bigger than start or equal
@@ -473,10 +489,15 @@ public class CMapParser
     {
         if (PDFBoxResourceLoader.isReady())
         {
-            return PDFBoxResourceLoader.getStream("com/tom_roush/fontbox/resources/cmap/" + name);
+            return new BufferedInputStream(PDFBoxResourceLoader.getStream("com/tom_roush/fontbox/resources/cmap/" + name));
         }
 
-        return new BufferedInputStream(getClass().getResourceAsStream("/com/tom_roush/fontbox/resources/cmap/" + name));
+        InputStream resourceAsStream = getClass().getResourceAsStream("/com/tom_roush/fontbox/resources/cmap/" + name);
+        if (resourceAsStream == null)
+        {
+            throw new IOException("Error: Could not find referenced cmap stream " + name);
+        }
+        return new BufferedInputStream(resourceAsStream);
     }
 
     private Object parseNextToken(PushbackInputStream is) throws IOException
@@ -663,13 +684,20 @@ public class CMapParser
                 }
                 is.unread(nextByte);
                 String value = buffer.toString();
-                if (value.indexOf('.') >= 0)
+                try
                 {
-                    retval = Double.valueOf(value);
+                    if (value.indexOf('.') >= 0)
+                    {
+                        retval = Double.valueOf(value);
+                    }
+                    else
+                    {
+                        retval = Integer.valueOf(value);
+                    }
                 }
-                else
+                catch (NumberFormatException ex)
                 {
-                    retval = Integer.valueOf(value);
+                    throw new IOException("Invalid number '" + value + "'", ex);
                 }
                 break;
             }

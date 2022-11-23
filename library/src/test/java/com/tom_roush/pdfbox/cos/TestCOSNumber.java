@@ -53,6 +53,8 @@ public abstract class TestCOSNumber extends TestCOSBase
         {
             // Ensure the basic static numbers are recognized
             assertEquals(COSInteger.ZERO, COSNumber.get("0"));
+            assertEquals(COSInteger.ZERO, COSNumber.get("-"));
+            assertEquals(COSInteger.ZERO, COSNumber.get("."));
             assertEquals(COSInteger.ONE, COSNumber.get("1"));
             assertEquals(COSInteger.TWO, COSNumber.get("2"));
             assertEquals(COSInteger.THREE, COSNumber.get("3"));
@@ -78,6 +80,15 @@ public abstract class TestCOSNumber extends TestCOSBase
             {
                 // PASS
             }
+            try
+            {
+                assertEquals(0, COSNumber.get("a"));
+                fail("Failed to throw an IOException");
+            }
+            catch (IOException e)
+            {
+                // PASS
+            }
             // PDFBOX-2569: some numbers start with "+"
             assertEquals(COSNumber.get("1"), COSNumber.get("+1"));
             assertEquals(COSNumber.get("123"), COSNumber.get("+123"));
@@ -89,14 +100,33 @@ public abstract class TestCOSNumber extends TestCOSBase
     }
 
     /**
-     * PDFBOX-4895: large number, too big for a long leads to a null value.
+     * PDFBOX-5176: large number, too big for a long leads to an COSInteger value which is marked as invalid.
      *
      * @throws IOException
      */
     public void testLargeNumber() throws IOException
     {
-        assertNull(COSNumber.get("18446744073307448448"));
-        assertNull(COSNumber.get("-18446744073307448448"));
+        // max value
+        COSNumber cosNumber = COSNumber.get(Long.toString(Long.MAX_VALUE));
+        assertTrue(cosNumber instanceof COSInteger);
+        COSInteger cosInteger = (COSInteger) cosNumber;
+        assertTrue(cosInteger.isValid());
+        // min value
+        cosNumber = COSNumber.get(Long.toString(Long.MIN_VALUE));
+        assertTrue(cosNumber instanceof COSInteger);
+        cosInteger = (COSInteger) cosNumber;
+        assertTrue(cosInteger.isValid());
+
+        // out of range, max value
+        cosNumber = COSNumber.get("18446744073307448448");
+        assertTrue(cosNumber instanceof COSInteger);
+        cosInteger = (COSInteger) cosNumber;
+        assertFalse(cosInteger.isValid());
+        // out of range, min value
+        cosNumber = COSNumber.get("-18446744073307448448");
+        assertTrue(cosNumber instanceof COSInteger);
+        cosInteger = (COSInteger) cosNumber;
+        assertFalse(cosInteger.isValid());
     }
 
     public void testInvalidNumber()

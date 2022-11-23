@@ -1001,7 +1001,7 @@ public class COSDictionary extends COSBase implements COSUpdateInfo
         COSBase bool = getDictionaryObject(firstKey, secondKey);
         if (bool instanceof COSBoolean)
         {
-            retval = ((COSBoolean) bool).getValue();
+            retval = bool == COSBoolean.TRUE;
         }
         return retval;
     }
@@ -1508,7 +1508,7 @@ public class COSDictionary extends COSBase implements COSUpdateInfo
         {
             if (retval instanceof COSArray)
             {
-                int idx = Integer.parseInt(pathString.replaceAll("\\[", "").replaceAll("\\]", ""));
+                int idx = Integer.parseInt(pathString.replace("\\[", "").replace("\\]", ""));
                 retval = ((COSArray) retval).getObject(idx);
             }
             else if (retval instanceof COSDictionary)

@@ -102,12 +102,13 @@ public abstract class PDFunction implements COSObjectable
     {
         return functionStream;
     }
+
     /**
      * Create the correct PD Model function based on the COS base function.
      *
      * @param function The COS function dictionary.
      *
-     * @return The PDModel Function object.
+     * @return The PDModel Function object, never null.
      *
      * @throws IOException If we are unable to create the PDFunction object.
      */
@@ -160,7 +161,14 @@ public abstract class PDFunction implements COSObjectable
         if (numberOfOutputValues == -1)
         {
             COSArray rangeValues = getRangeValues();
-            numberOfOutputValues = rangeValues.size() / 2;
+            if (rangeValues == null)
+            {
+                numberOfOutputValues = 0;
+            }
+            else
+            {
+                numberOfOutputValues = rangeValues.size() / 2;
+            }
         }
         return numberOfOutputValues;
     }

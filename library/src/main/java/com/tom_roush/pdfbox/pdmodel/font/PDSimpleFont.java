@@ -114,11 +114,10 @@ public abstract class PDSimpleFont extends PDFont
             }
             this.encoding = new DictionaryEncoding(encodingDict, !symbolic, builtIn);
         }
-        else if (encodingBase == null)
+        else
         {
             this.encoding = readEncodingFromFont();
         }
-
         // normalise the standard 14 name, e.g "Symbol,Italic" -> "Symbol"
         String standard14Name = Standard14Fonts.getMappedFontName(getName());
         assignGlyphList(standard14Name);
@@ -189,7 +188,7 @@ public abstract class PDSimpleFont extends PDFont
         {
             if (encoding == null)
             {
-                // sanity check, should never happen
+                // check, should never happen
                 if (!(this instanceof PDTrueTypeFont))
                 {
                     throw new IllegalStateException("PDFBox bug: encoding should not be null!");
